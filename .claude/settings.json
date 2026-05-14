@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sbt compile *)",
+      "Bash(sbt \"run --help\")",
+      "Bash(sbt bloopInstall)",
+      "Bash(/opt/homebrew/bin/coursier launch *)"
+    ]
+  }
+}

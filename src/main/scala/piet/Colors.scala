@@ -60,17 +60,17 @@ object Colors {
     } yield {
       val baseX = codelX * pixelsPerCodel
       val baseY = codelY * pixelsPerCodel
-      // NOTE: 正方形内の全ピクセルの RGB（アルファは無視）を集める
-      val rgbs = for {
+      // NOTE: 正方形の左上の色を取得（アルファ値は無視）
+      val rgb = image.getRGB(baseX, baseY) & 0XFFFFFF
+      // NOTE: 異なる色が同じコーデル内にある場合、例外を投げる
+      if ((for {
         offsetY <- 0 until pixelsPerCodel
         offsetX <- 0 until pixelsPerCodel
-      } yield image.getRGB(baseX + offsetX, baseY + offsetY) & 0xFFFFFF
-      // NOTE: 正方形が2色以上を含むなら、そのコーデルの座標を添えて例外を投げる
-      if (rgbs.distinct.size > 1) {
+      } yield image.getRGB(baseX + offsetX, baseY + offsetY) & 0xFFFFFF).exists(_ != rgb)) {
         throw MultiColorCodelException(codelX, codelY)
       }
       // NOTE: 色コードに一致する Color へ。一致しなければ Color.Black
-      code2Color.getOrElse(f"${rgbs.head}%06X", Color.Black)
+      code2Color.getOrElse(f"${rgb}%06X", Color.Black)
     }
 
     new Colors(colors.toArray, width, height)

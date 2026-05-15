@@ -1,3 +1,15 @@
+object Direction {
+  val Up = 0
+  val Right = 1
+  val Down = 2
+  val Left = 3
+}
+
+object CodelDirection {
+  val Right = 1
+  val Left = 2
+}
+
 case class Delta(hue: Int, brightness: Int)
 
 sealed trait Color {

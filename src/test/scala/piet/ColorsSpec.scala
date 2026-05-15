@@ -7,7 +7,7 @@ class ColorsSpec extends munit.FunSuite {
     assertEquals(color.brightness, color.BrightnessNormal)
   }
 
-  test("80x20") {
+  test("60x40/20") {
     val input = getClass.getResourceAsStream("/60x40.png")
     // 初期化時に例外がスローされないこと
     val colors = Colors(input, 20)
@@ -20,5 +20,24 @@ class ColorsSpec extends munit.FunSuite {
     assertEquals(colors.get(0, 1), Color.Black)
     assertEquals(colors.get(1, 1), Color.White)
     assertEquals(colors.get(2, 1), Color.Red)
+  }
+  test("60x40/コーデルサイズ違反") {
+    val input = getClass.getResourceAsStream("/60x40.png")
+    intercept[IllegalArgumentException] {
+      Colors(input, 15)
+    }
+  }
+  test("60x40/不正なコーデル") {
+    val input = getClass.getResourceAsStream("/60x40_failed.png")
+    try {
+      Colors(input, 20)
+      fail("例外が投げられていない")
+    } catch {
+      case MultiColorCodelException(x, y) => {
+        assertEquals(x, 2)
+        assertEquals(y, 1)
+      }
+      case _: Throwable => fail("異なる例外")
+    }
   }
 }

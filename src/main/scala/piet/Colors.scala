@@ -7,7 +7,7 @@ case class MultiColorCodelException(x: Int, y: Int)
 
 // NOTE: PNG から読み込んだコーデルの2次元配列
 // colors は immutable な Array として private に保持する
-class Colors private (private val colors: Array[Color], val width: Int, val height: Int) {
+class Colors(private val colors: Array[Color], val width: Int, val height: Int) {
   // NOTE: (x, y) のコーデルの色を返す。範囲外なら例外を投げる
   def get(x: Int, y: Int): Color = {
     if (x < 0 || x >= width || y < 0 || y >= height) {

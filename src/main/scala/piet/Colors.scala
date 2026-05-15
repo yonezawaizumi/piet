@@ -15,6 +15,57 @@ class Colors(private val colors: Array[Color], val width: Int, val height: Int) 
     }
     colors(y * width + x)
   }
+
+  // NOTE: (x, y) を含むカラーブロックの端コーデルとサイズを返す
+  //   カラーブロック: 指定されたコーデルと辺で隣接する、同じ色を持つコーデルのかたまり
+  //   橋コーデル: カラーブロックのうち、direction で指定された向きで最も遠方にあるコーデルのうち、その向きを向いたときの codelDirection で指定された向きにある遠方のコーデル
+  //   不正な direction / codelDirection は例外スロー
+  def getBlock(x: Int, y: Int, direction: Int, codelDirection: Int): (Int, Int, Int) = {
+    if (direction != Direction.Up && direction != Direction.Right
+        && direction != Direction.Down && direction != Direction.Left) {
+      throw new IllegalArgumentException(s"invalid direction: $direction")
+    }
+    if (codelDirection != CodelDirection.Left && codelDirection != CodelDirection.Right) {
+      throw new IllegalArgumentException(s"invalid codelDirection: $codelDirection")
+    }
+
+    val color = get(x, y)
+    // NOTE: 4近傍 BFS で同色の連結成分を集める
+    @scala.annotation.tailrec
+    def bfs(queue: List[(Int, Int)], visited: Set[(Int, Int)]): Set[(Int, Int)] = queue match {
+      case Nil => visited
+      case (cx, cy) :: rest =>
+        val next = List((cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)).filter {
+          case (nx, ny) =>
+            nx >= 0 && nx < width && ny >= 0 && ny < height &&
+              !visited.contains((nx, ny)) && get(nx, ny) == color
+        }
+        bfs(rest ++ next, visited ++ next)
+    }
+    val codels = bfs(List((x, y)), Set((x, y))).toSeq
+
+    // NOTE: direction で最遠の端コーデル群を抽出
+    val edge = direction match {
+      case Direction.Right => val m = codels.map(_._1).max; codels.filter(_._1 == m)
+      case Direction.Left  => val m = codels.map(_._1).min; codels.filter(_._1 == m)
+      case Direction.Down  => val m = codels.map(_._2).max; codels.filter(_._2 == m)
+      case Direction.Up    => val m = codels.map(_._2).min; codels.filter(_._2 == m)
+    }
+
+    // NOTE: codelDirection で上の集合から 1つ選ぶ
+    val (ex, ey) = (direction, codelDirection) match {
+      case (Direction.Right, CodelDirection.Left)  => edge.minBy(_._2)
+      case (Direction.Right, CodelDirection.Right) => edge.maxBy(_._2)
+      case (Direction.Down,  CodelDirection.Left)  => edge.maxBy(_._1)
+      case (Direction.Down,  CodelDirection.Right) => edge.minBy(_._1)
+      case (Direction.Left,  CodelDirection.Left)  => edge.maxBy(_._2)
+      case (Direction.Left,  CodelDirection.Right) => edge.minBy(_._2)
+      case (Direction.Up,    CodelDirection.Left)  => edge.minBy(_._1)
+      case (Direction.Up,    CodelDirection.Right) => edge.maxBy(_._1)
+    }
+
+    (ex, ey, codels.size)
+  }
 }
 
 object Colors {

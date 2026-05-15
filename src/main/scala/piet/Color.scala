@@ -1,3 +1,5 @@
+case class Delta(hue: Int, brightness: Int)
+
 sealed trait Color {
   def code: String
   def hue: Int
@@ -11,8 +13,16 @@ sealed trait Color {
   val BrightnessLight = 0
   val BrightnessNormal = 1
   val BrightnessDark = 2
-  val HueWHite = -1
+  val HueWhite = -1
   val HueBlack = -2
+
+  def nextDelta(next: Color): Option[Delta] = {
+    if (hue == HueWhite || hue == HueBlack || next.hue == HueWhite || next.hue == HueBlack) {
+      None
+    } else {
+      Some(Delta((next.hue + 6 - hue) % 6, (next.brightness + 3 - brightness) % 3))
+    }
+  }
 }
 
 object Color {
@@ -108,7 +118,7 @@ object Color {
   }
   object White extends Color {
     def code = "FFFFFF"
-    def hue = HueWHite
+    def hue = HueWhite
     def brightness = BrightnessNormal
   }
   object Black extends Color {

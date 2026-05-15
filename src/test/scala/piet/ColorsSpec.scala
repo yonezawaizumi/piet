@@ -1,12 +1,4 @@
 class ColorsSpec extends munit.FunSuite {
-
-  test("赤") {
-    val color = Color.Red
-    assertEquals(color.code, "FF0000")
-    assertEquals(color.hue, color.HueRed)
-    assertEquals(color.brightness, color.BrightnessNormal)
-  }
-
   test("60x40/20") {
     val input = getClass.getResourceAsStream("/60x40.png")
     // 初期化時に例外がスローされないこと

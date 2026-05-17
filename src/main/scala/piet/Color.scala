@@ -1,13 +1,37 @@
-object Direction {
-  val Up = 0
-  val Right = 1
-  val Down = 2
-  val Left = 3
+sealed trait Direction {
+  def value: Int
+  val Right = 0
+  val Down = 1
+  val Left = 2
+  val Up = 3
 }
 
-object CodelDirection {
+object Direction {
+  object Right extends Direction { def value = Right }
+  object Down extends Direction { def value = Down }
+  object Left extends Direction { def value = Left }
+  object Up extends Direction { def value = Up }
+  def rotate(direction: Direction, times: Int) = (direction.value + times) % 4 match {
+    case 0 => Right
+    case 1 => Down
+    case 2 => Left
+    case 3 => Up
+  }
+}
+
+sealed trait Chooser {
+  def value: Int
+  val Left = 0
   val Right = 1
-  val Left = 2
+}
+
+object Chooser {
+  object Left extends Chooser { def value = Left }
+  object Right extends Chooser { def value = Right }
+  def rotate(chooser: Chooser, times: Int) = (chooser.value + times) % 2 match {
+    case 0 => Left
+    case 1 => Right
+  }
 }
 
 case class Delta(hue: Int, brightness: Int)
@@ -29,8 +53,10 @@ sealed trait Color {
   val HueBlack = -2
 
   def nextDelta(next: Color): Option[Delta] = {
-    if (hue == HueWhite || hue == HueBlack || next.hue == HueWhite || next.hue == HueBlack) {
+    if (hue == HueBlack || next.hue == HueBlack) {
       None
+    } else if (hue == HueWhite || next.hue == HueWhite) {
+      Some(Delta(0, 0))
     } else {
       Some(Delta((next.hue + 6 - hue) % 6, (next.brightness + 3 - brightness) % 3))
     }

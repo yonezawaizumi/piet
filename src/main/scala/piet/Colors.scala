@@ -5,6 +5,8 @@ import javax.imageio.ImageIO
 case class MultiColorCodelException(x: Int, y: Int)
   extends RuntimeException(s"codel at ($x, $y) contains multiple colors")
 
+case class BlockStatus(x: Int, y: Int, color: Color, size: Int)
+
 // NOTE: PNG から読み込んだコーデルの2次元配列
 // colors は immutable な Array として private に保持する
 class Colors(private val colors: Array[Color], val width: Int, val height: Int) {
@@ -16,17 +18,33 @@ class Colors(private val colors: Array[Color], val width: Int, val height: Int) 
     colors(y * width + x)
   }
 
-  // NOTE: (x, y) を含むカラーブロックの端コーデルとサイズを返す
+  // NOTE: direction を (dx, dy) ベクトルに変換
+  private def directionDelta(direction: Direction): (Int, Int) = direction match {
+    case Direction.Right => (1, 0)
+    case Direction.Left  => (-1, 0)
+    case Direction.Down  => (0, 1)
+    case Direction.Up    => (0, -1)
+  }
+
+  // NOTE: 次のコーデルの座標を得る
+  def nextCodel(x: Int, y: Int, direction: Direction): Option[(Int, Int)] = {
+    val delta = directionDelta(direction)
+    val (nx, ny) = (x + delta._1, y + delta._2)
+    if (nx < 0 || width - 1 < nx || ny < 0 || height - 1 < ny) None else Some((nx, ny))
+  }
+
+  // NOTE: (x, y) を含むカラーブロックを direction の向きに抜けた直後の座標と、ブロックサイズを返す
   //   カラーブロック: 指定されたコーデルと辺で隣接する、同じ色を持つコーデルのかたまり
-  //   橋コーデル: カラーブロックのうち、direction で指定された向きで最も遠方にあるコーデルのうち、その向きを向いたときの codelDirection で指定された向きにある遠方のコーデル
-  //   不正な direction / codelDirection は例外スロー
-  def getBlock(x: Int, y: Int, direction: Int, codelDirection: Int): (Int, Int, Int) = {
+  //   端コーデル: カラーブロックのうち、direction で指定された向きで最も遠方にあるコーデルのうち、その向きを向いたときの chooser で指定された向きにある遠方のコーデル
+  //   端コーデルから direction に 1 つ進んだ座標を Some で返す。画像をはみ出す場合は None
+  //   不正な direction / chooser は例外スロー
+  def getBlock(x: Int, y: Int, direction: Direction, chooser: Chooser): Option[BlockStatus] = {
     if (direction != Direction.Up && direction != Direction.Right
         && direction != Direction.Down && direction != Direction.Left) {
       throw new IllegalArgumentException(s"invalid direction: $direction")
     }
-    if (codelDirection != CodelDirection.Left && codelDirection != CodelDirection.Right) {
-      throw new IllegalArgumentException(s"invalid codelDirection: $codelDirection")
+    if (chooser != Chooser.Left && chooser != Chooser.Right) {
+      throw new IllegalArgumentException(s"invalid chooser: $chooser")
     }
 
     val color = get(x, y)
@@ -52,19 +70,51 @@ class Colors(private val colors: Array[Color], val width: Int, val height: Int) 
       case Direction.Up    => val m = codels.map(_._2).min; codels.filter(_._2 == m)
     }
 
-    // NOTE: codelDirection で上の集合から 1つ選ぶ
-    val (ex, ey) = (direction, codelDirection) match {
-      case (Direction.Right, CodelDirection.Left)  => edge.minBy(_._2)
-      case (Direction.Right, CodelDirection.Right) => edge.maxBy(_._2)
-      case (Direction.Down,  CodelDirection.Left)  => edge.maxBy(_._1)
-      case (Direction.Down,  CodelDirection.Right) => edge.minBy(_._1)
-      case (Direction.Left,  CodelDirection.Left)  => edge.maxBy(_._2)
-      case (Direction.Left,  CodelDirection.Right) => edge.minBy(_._2)
-      case (Direction.Up,    CodelDirection.Left)  => edge.minBy(_._1)
-      case (Direction.Up,    CodelDirection.Right) => edge.maxBy(_._1)
+    // NOTE: chooser で上の集合から 1つ選ぶ
+    val (ex, ey) = (direction, chooser) match {
+      case (Direction.Right, Chooser.Left)  => edge.minBy(_._2)
+      case (Direction.Right, Chooser.Right) => edge.maxBy(_._2)
+      case (Direction.Down,  Chooser.Left)  => edge.maxBy(_._1)
+      case (Direction.Down,  Chooser.Right) => edge.minBy(_._1)
+      case (Direction.Left,  Chooser.Left)  => edge.maxBy(_._2)
+      case (Direction.Left,  Chooser.Right) => edge.minBy(_._2)
+      case (Direction.Up,    Chooser.Left)  => edge.minBy(_._1)
+      case (Direction.Up,    Chooser.Right) => edge.maxBy(_._1)
     }
 
-    (ex, ey, codels.size)
+    // NOTE: 端コーデルから direction に 1 つ進んだ座標。画像をはみ出すなら None
+    val (dx, dy) = directionDelta(direction)
+    val nx = ex + dx
+    val ny = ey + dy
+    if (nx < 0 || nx >= width || ny < 0 || ny >= height) None
+    else Some(BlockStatus(nx, ny, get(nx, ny), codels.size))
+  }
+
+  // NOTE: (x, y) が White のとき、direction の向きに白のまま直進した最終位置を返す
+  //   非Whiteのコーデル、または画像のふちに到達した直前の白コーデルの座標
+  //   (x, y) が White でない場合、または direction が不正な場合は例外
+  def getWhiteBlock(x: Int, y: Int, direction: Direction): (Int, Int) = {
+    if (direction != Direction.Up && direction != Direction.Right
+        && direction != Direction.Down && direction != Direction.Left) {
+      throw new IllegalArgumentException(s"invalid direction: $direction")
+    }
+    if (get(x, y) != Color.White) {
+      throw new IllegalArgumentException(s"codel at ($x, $y) is not White")
+    }
+
+    val (dx, dy) = directionDelta(direction)
+
+    @scala.annotation.tailrec
+    def walk(cx: Int, cy: Int): (Int, Int) = {
+      val nx = cx + dx
+      val ny = cy + dy
+      if (nx < 0 || nx >= width || ny < 0 || ny >= height || get(nx, ny) != Color.White) {
+        (cx, cy)
+      } else {
+        walk(nx, ny)
+      }
+    }
+    walk(x, y)
   }
 }
 

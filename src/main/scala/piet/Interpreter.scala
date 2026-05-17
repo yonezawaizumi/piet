@@ -18,7 +18,7 @@ class Interpreter(colors: Colors, _input: InputStream, output: OutputStream) {
     val depth = stack.tail.head
     val s = stack.tail.tail
     // NOTE: 深さが非正、または残りのスタック（長さ-2）
-    if (times == 0 || depth <= 0 || s.lengthCompare(depth) <= 0) s
+    if (times == 0 || depth <= 0 || s.lengthCompare(depth) < 0) s
     else {
       val (t, b) = s.splitAt(depth)
       // NOTE: t は空でない
@@ -75,7 +75,7 @@ class Interpreter(colors: Colors, _input: InputStream, output: OutputStream) {
             case Delta(2, 0) => // NOTE: DEVIDE
               State(next.x, next.y, dp, cc, if (state.stack.lengthCompare(2) < 0 || state.stack.head == 0) state.stack else (state.stack.tail.head / state.stack.head) +: state.stack.tail.tail)
             case Delta(2, 1) => // NOTE: MOD
-              State(next.x, next.y, dp, cc, if (state.stack.lengthCompare(2) < 0 || state.stack.head == 0) state.stack else (state.stack.tail.head % state.stack.head) +: state.stack.tail.tail)
+              State(next.x, next.y, dp, cc, if (state.stack.lengthCompare(2) < 0 || state.stack.head == 0) state.stack else ((state.stack.tail.head % state.stack.head + state.stack.head) % state.stack.head) +: state.stack.tail.tail)
             case Delta(2, 2) => // NOTE: NOT
               State(next.x, next.y, dp, cc, if (state.stack.isEmpty) state.stack else (if (state.stack.head == 0) 1 else 0) +: state.stack.tail)
             case Delta(3, 0) => // NOTE: GREATE
